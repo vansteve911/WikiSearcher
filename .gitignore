@@ -1,0 +1,8 @@
+__pycache__
+.DS_Store
+build/*
+setup.py
+project.egg-info/*
+*.log
+*.pyc
+sftp-config.json
