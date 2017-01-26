@@ -8,13 +8,13 @@ def load_csv_file(file, read_cols = None, offset = 0, size = 100):
     cursor = -1
     with open(file) as f:
       while True:
-        cursor += 1
-        if cursor < offset:
-          continue
-        if cursor > offset + size:
-          break
         line = f.readline()
         if line:
+          cursor += 1
+          if cursor < offset:
+            continue
+          if cursor > offset + size:
+            break
           row = line.replace('\n', '').split(',')
           if single_col_idx != None:
             row = row[single_col_idx]
@@ -29,4 +29,4 @@ def load_csv_file(file, read_cols = None, offset = 0, size = 100):
     traceback.print_exc()
 
 if __name__ == '__main__':
-  print(load_csv_file('/Users/vansteve911/Desktop/distinct_colleges.csv', [0], offset = 100, size = 10))
+  print(load_csv_file('/Users/vansteve911/Desktop/distinct_colleges.csv', [0], offset = 200, size = 10))

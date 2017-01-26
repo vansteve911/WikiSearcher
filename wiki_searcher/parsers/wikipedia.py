@@ -81,13 +81,13 @@ class WikipediaParser(object):
 	def parse_en_wiki(self, response):
 		# find zh title and zh wiki url from response
 		link_sel = response.css('div#p-lang.portal ul li.interwiki-zh a')
+		wiki_data = response.meta.get('wiki_data')
 		if not link_sel:
 			print('no zh wiki page found on %s' % response.url)
-			return
-		zh_url = link_sel.xpath('@href').extract_first()
-		zh_title = link_sel.xpath('@title').extract_first().replace(' \u2013 Chinese', '')
-		wiki_data = response.meta.get('wiki_data')
-		wiki_data['zh_wiki'] = {'url': zh_url, 'title': zh_title}
+		else:
+			zh_url = link_sel.xpath('@href').extract_first()
+			zh_title = link_sel.xpath('@title').extract_first().replace(u' \u2013 Chinese', '')
+			wiki_data['zh_wiki'] = {'url': zh_url, 'title': zh_title}
 		self.__complete_info(wiki_data)
 		yield WikipediaParser.genWikiItem(wiki_data)
 

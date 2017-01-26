@@ -7,7 +7,7 @@ SEARCH_URL_TMPL = 'http://www.google.{region}/search?hl=en&as_q=&as_epq={query}&
 
 class GoogleParser(object):
 
-	region = 'com.hk'
+	region = 'com'
 
 	def get_search_url(self, query):
 		return SEARCH_URL_TMPL.format(region=self.region, query='+'.join(query.split()).strip('+'))
