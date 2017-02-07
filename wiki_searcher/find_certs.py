@@ -11,7 +11,8 @@ from selenium.common.exceptions import TimeoutException
 from common.utils import load_csv_file
 
 GOOGLE_HOME = 'https://www.google.com.hk'
-EDU_KEYWORDS = ['education','college','universit', 'school', 'academy', u'\u6559\u80b2', u'\u6821']
+# EDU_KEYWORDS = ['education','college','universit', 'school', 'academy', u'\u6559\u80b2', u'\u6821']
+COMPANY_KEYWORDS = ['company', 'companies', 'corporation', 'firm', 'brand']
 
 def init_driver():
   return webdriver.Chrome()
@@ -20,12 +21,10 @@ def wait_until_ready(driver, elemend_id, delay = 5):
   retry_cnt = 4
   while retry_cnt > 0:
     try:
-      # print('waiting...')
       element = WebDriverWait(driver, delay).until(
           EC.presence_of_element_located((By.ID, elemend_id))
       )
       return
-      # print('Page is ready!')
     except TimeoutException:
       print('Loading took too much time! will refresh and try again. retry count: %s' % retry_cnt)
       delay *= 1.5
@@ -79,13 +78,13 @@ def complete_wikipedia_info(driver, info):
   if not info['en_wiki_url'] and not info['zh_wiki_url']:
     print('no wiki found')
     return None
-  def update_info(lang, url):
+  def update_info(lang, url, do_filter = True):
     print('requesting %s...' % url)
     driver.get(url)
     wait_until_ready(driver, 'p-lang')
     # check if is a wiki about education
     cat_titles= [e.get_attribute('title') for e in driver.find_elements_by_css_selector('div#catlinks ul li a')]
-    if not filter(lambda x : filter(lambda y:y.lower() in x, EDU_KEYWORDS), cat_titles):
+    if do_filter:
     # if False: # TODO
       info.update({
           'code': 'N/A',
@@ -94,7 +93,7 @@ def complete_wikipedia_info(driver, info):
           'zh_wiki_url': '',
           'zh_name': '',
         })
-      raise Exception('not a educational wiki: %s' % url)
+      raise Exception('not a company wiki: %s' % url)
     wiki_url = ''
     name = ''
     wiki_link = None
@@ -119,9 +118,9 @@ def complete_wikipedia_info(driver, info):
     info['code'] = info['zh_wiki_url'].replace('https://zh.wikipedia.org/', '')
   try:
     if not info['zh_wiki_url']:
-      update_info('zh', info['en_wiki_url'])
+      update_info('zh', info['en_wiki_url'], do_filter = False)
     elif not info['en_wiki_url']:
-      update_info('en', info['zh_wiki_url'])
+      update_info('en', info['zh_wiki_url'], do_filter = False)
     if info['en_wiki_url'] and info['code'] != info['en_wiki_url']:
       info['code'] = info['en_wiki_url'].replace('https://en.wikipedia.org/wiki/', '')
   except Exception as e:
@@ -139,48 +138,42 @@ def search(driver, word):
   # except Exception as e:
   #   traceback.print_exc()
 
-  
 def main():
-  # data_file = '/Users/vansteve911/Desktop/distinct_colleges.csv'
-  # out_file = '/Users/vansteve911/Desktop/the_college_names.csv'
-  data_file = '/Users/vansteve911/project/eliteEngine/data/listings/lowed.csv'
-  out_file = '/Users/vansteve911/project/eliteEngine/data/listings/out_lowed.csv'
-  # old_out_file = '/Users/vansteve911/Desktop/college_names.csv'
-  # loaded_words = set(load_csv_file(out_file, [1], spliter = '\t', offset = 0, size = 10000))
-  loaded_words = []
+  data_file = '/Users/vansteve911/project/eliteEngine/data/listings/certificates.csv'
+  out_file = '/Users/vansteve911/project/eliteEngine/data/listings/out_certificates.csv'
   line_num = int(sys.argv[1])
-  words = load_csv_file(data_file, [0], spliter = '\t', offset = line_num, size = int(sys.argv[2]))
-  print('loaded words count: %s' % len(loaded_words))
+  lines = load_csv_file(data_file, spliter = '\t', offset = line_num, size = int(sys.argv[2]))
   driver = init_driver()
-  for word in words:
+  for line in lines:
     line_num += 1
-    if word in loaded_words:
-      print('%s is loaded, pass' % word)
-      continue
-    print('[LINE-%s] word: %s' % (line_num, word))
+    cert_name = line[1]
+    ca_name = line[2]
+    print('[LINE-%s] cert name: %s, ca name: %s' % (line_num, cert_name, ca_name))
     # retry at most 4 times
-    retry_cnt_left = 4
-    info = None
-    while not info and retry_cnt_left > 0:
-      try:
-        info = search(driver, word)
-      except Exception as e:
-        print('[LINE-%s] error occured, word: %s, retry count left: %s' % (line_num, word, retry_cnt_left))
-        traceback.print_exc()
-        info = None
-        time.sleep(1)
-        retry_cnt_left -= 1
-    if info:
-      try:
-        line = '%s\t%s\t%s\t%s\t%s\t%s\n' % (info['code'], info['word'], info['en_wiki_url'], info['en_name'], info['zh_wiki_url'], info['zh_name'])
-        print('[LINE-%s] result: %s' % (line_num, line))
-        with open(out_file, "a") as f:
-          f.write(line.encode('utf-8'))
-      except Exception as e:
-        traceback.print_exc()
-
+    result = ''
+    for word in [cert_name, ca_name]:
+      retry_cnt_left = 4
+      info = None
+      while not info and retry_cnt_left > 0:
+        try:
+          info = search(driver, word)
+        except Exception as e:
+          print('[LINE-%s] error occured, word: %s, retry count left: %s' % (line_num, word, retry_cnt_left))
+          traceback.print_exc()
+          info = None
+          time.sleep(1)
+          retry_cnt_left -= 1
+      if info:
+        try:
+          result += '%s\t%s\t%s\t%s\t%s\t%s\n' % (info['code'], info['word'], info['en_wiki_url'], info['en_name'], info['zh_wiki_url'], info['zh_name'])
+        except Exception as e:
+          traceback.print_exc()
+    if result:
+      result = '%s\t%s' % (line[0], result)
+      print('[LINE-%s] result: %s' % (line_num, result))
+      with open(out_file, "a") as f:
+        f.write(result.encode('utf-8')) 
   driver.quit()
 
 if __name__ == '__main__':
   main()
-  

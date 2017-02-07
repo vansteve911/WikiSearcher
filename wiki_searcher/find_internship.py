@@ -11,7 +11,8 @@ from selenium.common.exceptions import TimeoutException
 from common.utils import load_csv_file
 
 GOOGLE_HOME = 'https://www.google.com.hk'
-EDU_KEYWORDS = ['education','college','universit', 'school', 'academy', u'\u6559\u80b2', u'\u6821']
+# EDU_KEYWORDS = ['education','college','universit', 'school', 'academy', u'\u6559\u80b2', u'\u6821']
+COMPANY_KEYWORDS = ['company', 'companies', 'corporation', 'firm', 'brand']
 
 def init_driver():
   return webdriver.Chrome()
@@ -20,12 +21,10 @@ def wait_until_ready(driver, elemend_id, delay = 5):
   retry_cnt = 4
   while retry_cnt > 0:
     try:
-      # print('waiting...')
       element = WebDriverWait(driver, delay).until(
           EC.presence_of_element_located((By.ID, elemend_id))
       )
       return
-      # print('Page is ready!')
     except TimeoutException:
       print('Loading took too much time! will refresh and try again. retry count: %s' % retry_cnt)
       delay *= 1.5
@@ -79,13 +78,13 @@ def complete_wikipedia_info(driver, info):
   if not info['en_wiki_url'] and not info['zh_wiki_url']:
     print('no wiki found')
     return None
-  def update_info(lang, url):
+  def update_info(lang, url, do_filter = True):
     print('requesting %s...' % url)
     driver.get(url)
     wait_until_ready(driver, 'p-lang')
     # check if is a wiki about education
     cat_titles= [e.get_attribute('title') for e in driver.find_elements_by_css_selector('div#catlinks ul li a')]
-    if not filter(lambda x : filter(lambda y:y.lower() in x, EDU_KEYWORDS), cat_titles):
+    if do_filter and not filter(lambda x : filter(lambda y:y.lower() in x, COMPANY_KEYWORDS), cat_titles):
     # if False: # TODO
       info.update({
           'code': 'N/A',
@@ -94,7 +93,7 @@ def complete_wikipedia_info(driver, info):
           'zh_wiki_url': '',
           'zh_name': '',
         })
-      raise Exception('not a educational wiki: %s' % url)
+      raise Exception('not a company wiki: %s' % url)
     wiki_url = ''
     name = ''
     wiki_link = None
@@ -121,7 +120,7 @@ def complete_wikipedia_info(driver, info):
     if not info['zh_wiki_url']:
       update_info('zh', info['en_wiki_url'])
     elif not info['en_wiki_url']:
-      update_info('en', info['zh_wiki_url'])
+      update_info('en', info['zh_wiki_url'], do_filter = False)
     if info['en_wiki_url'] and info['code'] != info['en_wiki_url']:
       info['code'] = info['en_wiki_url'].replace('https://en.wikipedia.org/wiki/', '')
   except Exception as e:
@@ -139,21 +138,24 @@ def search(driver, word):
   # except Exception as e:
   #   traceback.print_exc()
 
-  
 def main():
   # data_file = '/Users/vansteve911/Desktop/distinct_colleges.csv'
   # out_file = '/Users/vansteve911/Desktop/the_college_names.csv'
-  data_file = '/Users/vansteve911/project/eliteEngine/data/listings/lowed.csv'
-  out_file = '/Users/vansteve911/project/eliteEngine/data/listings/out_lowed.csv'
+  data_file = '/Users/vansteve911/Desktop/bachelor_exp.csv'
+  out_file = '/Users/vansteve911/project/eliteEngine/data/listings/intern_exp.csv'
   # old_out_file = '/Users/vansteve911/Desktop/college_names.csv'
-  # loaded_words = set(load_csv_file(out_file, [1], spliter = '\t', offset = 0, size = 10000))
-  loaded_words = []
+  loaded_words = set(load_csv_file(out_file, [3], spliter = '\t', offset = 0, size = 10000))
+  # loaded_words = []
   line_num = int(sys.argv[1])
-  words = load_csv_file(data_file, [0], spliter = '\t', offset = line_num, size = int(sys.argv[2]))
+  lines = load_csv_file(data_file, spliter = '\t', offset = line_num, size = int(sys.argv[2]))
   print('loaded words count: %s' % len(loaded_words))
   driver = init_driver()
-  for word in words:
+  for line in lines:
     line_num += 1
+    if len(line) < 5 or line[4] != '1':
+      print('not a company: %s' % line)
+      continue
+    word = line[3]
     if word in loaded_words:
       print('%s is loaded, pass' % word)
       continue
@@ -183,4 +185,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-  
